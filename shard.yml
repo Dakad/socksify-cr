@@ -1,0 +1,9 @@
+name: socksify
+version: 0.1.0
+
+authors:
+  - DakaD <3106338+Dakad@users.noreply.github.com>
+
+crystal: 1.3.0
+
+license: MIT
