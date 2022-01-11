@@ -11,7 +11,7 @@ module SpecHelper
 
   def enable_socks
     TCPSocket.socks_server = "127.0.0.1"
-    TCPSocket.socks_port = 9050
+    TCPSocket.socks_port = 9001
   end
 
   def http_tor_proxy

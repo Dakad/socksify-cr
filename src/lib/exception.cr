@@ -3,8 +3,8 @@ module Socksify
   class SOCKSError < RuntimeError
     def initialize(msg)
       # @@log.debug("#{self.class}: #{msg}")
-      p("#{self.class}: #{msg}")
       super
+      p("#{self.class}: #{msg}")
     end
     class ServerFailure < SOCKSError
       def initialize
@@ -71,5 +71,4 @@ module Socksify
     end
   end
 end
-
 

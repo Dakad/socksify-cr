@@ -29,7 +29,8 @@ class TCPSocket
   end
 
   # See http://tools.ietf.org/html/rfc1928
-  def initialize(host=nil, port=0, local_host=nil, local_port=nil)
+  def initialize(host=nil, port=0)
+    p "TCPSocket.construct"
     if host.is_a? SOCKSConnectionPeerAddress
       socks_peer = host
       socks_server = socks_peer.socks_server
@@ -42,15 +43,15 @@ class TCPSocket
       socks_ignores = self.class.socks_ignores
     end
 
-    p! socks_server,socks_port,local_host,local_port,socks_ignores
-    if socks_server && socks_port && !socks_ignores.include?(host)
+    p! socks_server,socks_port#,local_host,local_port,socks_ignores
+    if socks_server && socks_port && !socks_ignores.includes?(host)
       @@log.debug "Connecting to SOCKS server #{socks_server}:#{socks_port}"
-      connect socks_server, socks_port
+      initialize socks_server, socks_port
       socks_authenticate unless @@socks_version =~ /^4/
       socks_connect(host, port) if host
     else
       @@log.debug "Connecting directly to #{host}:#{port}"
-      initialize host, port, local_host, local_port
+      initialize host, port
       @@log.debug "Connected to #{host}:#{port}"
     end
   end
@@ -68,29 +69,29 @@ class TCPSocket
     @@log.debug "Waiting for authentication reply"
     auth_reply,_ = receive(2)
     if auth_reply.empty?
-      raise SOCKSError.new("Server doesn't reply authentication")
+      raise Socksify::SOCKSError.new("Server doesn't reply authentication")
     end
     if auth_reply[0..0] != "\004" && auth_reply[0..0] != "\005"
-      raise SOCKSError.new("SOCKS version #{auth_reply[0..0]} not supported")
+      raise Socksify::SOCKSError.new("SOCKS version #{auth_reply[0..0]} not supported")
     end
-    if self.class.socks_username || self.class.socks_password
+    if !self.class.socks_username.nil? || !self.class.socks_password.nil?
       if auth_reply[1..1] != "\002"
-        raise SOCKSError.new("SOCKS authentication method #{auth_reply[1..1]} neither requested nor supported")
+        raise Socksify::SOCKSError.new("SOCKS authentication method #{auth_reply[1..1]} neither requested nor supported")
       end
-      auth = "\001"
-      auth += self.class.socks_username.bytesize
-      auth += self.class.socks_username.to_s
-      auth += self.class.socks_password.bytesize
-      auth += self.class.socks_password.to_s
-      @@log.debug "Sending auth credentials : " + auth
-      send auth
+      auth = ["\001"]
+      auth << self.class.socks_username.not_nil!.bytesize.to_s
+      auth << self.class.socks_username.to_s
+      auth << self.class.socks_password.not_nil!.bytesize.to_s
+      auth << self.class.socks_password.to_s
+      @@log.debug "Sending auth credentials " + auth.join
+      send auth.join
       auth_reply = receive(2)
       if auth_reply[1..1] != "\000"
-        raise SOCKSError.new("SOCKS authentication failed")
+        raise Socksify::SOCKSError.new("SOCKS authentication failed")
       end
     else
       if auth_reply[1..1] != "\000"
-        raise SOCKSError.new("SOCKS authentication method #{auth_reply[1..1]} neither requested nor supported")
+        raise Socksify::SOCKSError.new("SOCKS authentication method #{auth_reply[1..1]} neither requested nor supported")
       end
     end
   end
@@ -98,30 +99,30 @@ class TCPSocket
   # Connect
   def socks_connect(host, port)
     # port = Socket.getservbyname(port) if port.is_a?(String)
-    req = String.new
+    req = [] of String
     @@log.debug "Sending destination address"
     req << TCPSocket.socks_version
-    @@log.debug TCPSocket.socks_version.unpack "H*"
+    @@log.debug TCPSocket.socks_version#.unpack "H*"
     req << "\001"
     req << "\000" if @@socks_version == "5"
-    req << [port].pack('n') if @@socks_version =~ /^4/
+    req << Array.pack_to_n [port] if @@socks_version =~ /^4/
 
     if @@socks_version == "4"
       # DNS resolve the host if it's a domain "example.com"
-      addrinfos = Socket::Addrinfo.resolve(host)
+      addrinfos = Socket::Addrinfo.resolve(host, "http", type: Socket::Type::STREAM, protocol: Socket::Protocol::TCP)
       host = addrinfos.first.ip_address.to_s
     end
     @@log.debug host
     if Socket.ip? host # to IPv4 address
       req << "\001" if @@socks_version == "5"
-      _ip = host.split(".").map(&.to_i).pack("CCCC")
+      _ip = Array.pack_to_C host.split(".").map(&.to_i)
       req << _ip
     elsif host =~ /^[:0-9a-f]+$/  # to IPv6 address
       raise "TCP/IPv6 over SOCKS is not yet supported (inet_pton missing in Ruby & not supported by Tor"
       req << "\004"
     else                          # to hostname
       if @@socks_version == "5"
-        req << "\003" + [host.size].pack('C') + host
+        req << "\003" + Array.pack_to_C([host.size]) + host
       else
         req << "\000\000\000\001"
         req << "\007\000"
@@ -129,9 +130,9 @@ class TCPSocket
         req << "\000"
       end
     end
-    req << [port].pack('n') if @@socks_version == "5"
-    @@log.debug "Send connect req: " + req
-    send req
+    req << Array.pack_to_n [port] if @@socks_version == "5"
+    @@log.debug "Send connect req: " + req.join
+    send req.join
 
     socks_receive_reply
     @@log.debug "Connected to #{host}:#{port} over SOCKS"
@@ -209,7 +210,7 @@ class TCPSocket
   end
 
   def write(str : Array(String))
-    p str
+    # p str
     write str.join.to_slice
   end
 end
