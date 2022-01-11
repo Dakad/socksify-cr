@@ -13,4 +13,12 @@ dependencies:
     github: dakad/diagnostic_logger
     version: 3.1.0
 
+targets:
+  socksify:
+    main: src/socksify.cr
+  simple:
+    main: examples/simple.cr
+
 development_dependencies:
+
+
