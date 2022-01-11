@@ -1,39 +1,36 @@
 class TCPSocket
   # @@socks_version = "5"
 
-  class_getter socks_server : String?
+  @@log = DiagnosticLogger.new "socksify-cr", Log::Severity::Debug
+
+  class_getter socks_version : String = "5"
   class_property socks_server : String?
   class_property socks_port : Int32?
   class_property socks_username : String?
   class_property socks_password : String?
   class_property socks_ignores : Array(String) =  %w(localhost)
 
-  def self.socks_version
+  def self.socks_version : String
     (@@socks_version == "4a" || @@socks_version == "4") ? "\004" : "\005"
   end
 
 
   struct SOCKSConnectionPeerAddress
-    getter :socks_server, :socks_port
+    getter :socks_server, :socks_port, :peer_host
 
-    def initialize(@socks_server, @socks_port, peer_host)
-      super peer_host
+    # delegate to_s, @peer_host
+
+    def initialize(@socks_server, @socks_port, @peer_host)
     end
 
     def inspect
       "#{to_s} (via #{@socks_server}:#{@socks_port})"
     end
-
-    def peer_host
-      to_s
-    end
   end
 
-  # alias :initialize_tcp :initialize
-
   # See http://tools.ietf.org/html/rfc1928
-  def initialize_tcp(host=nil, port=0, local_host=nil, local_port=nil)
-    if host.is_a?(SOCKSConnectionPeerAddress)
+  def initialize(host=nil, port=0, local_host=nil, local_port=nil)
+    if host.is_a? SOCKSConnectionPeerAddress
       socks_peer = host
       socks_server = socks_peer.socks_server
       socks_port = socks_peer.socks_port
@@ -45,14 +42,15 @@ class TCPSocket
       socks_ignores = self.class.socks_ignores
     end
 
+    p! socks_server,socks_port,local_host,local_port,socks_ignores
     if socks_server && socks_port && !socks_ignores.include?(host)
       @@log.debug "Connecting to SOCKS server #{socks_server}:#{socks_port}"
-      initialize_tcp socks_server, socks_port
+      connect socks_server, socks_port
       socks_authenticate unless @@socks_version =~ /^4/
       socks_connect(host, port) if host
     else
       @@log.debug "Connecting directly to #{host}:#{port}"
-      initialize_tcp host, port, local_host, local_port
+      initialize host, port, local_host, local_port
       @@log.debug "Connected to #{host}:#{port}"
     end
   end
@@ -140,58 +138,79 @@ class TCPSocket
   end
 
   # returns [bind_addr: String, bind_port: Fixnum]
-  def socks_receive_reply(): Array(String|Int)
+  def socks_receive_reply()
+    bind_addr = ""
+    bind_port = 0
+
     @@log.debug "Waiting for SOCKS reply"
     if @@socks_version == "5"
-      connect_reply = receive(4)
+      connect_reply = receive(4).first
       if connect_reply.empty?
-        raise SOCKSError.new("Server doesn't reply")
+        raise Socksify::SOCKSError.new("Server doesn't reply")
       end
-      @@log.debug connect_reply.unpack "H*"
+      # @@log.debug connect_reply.unpack "H*"
       if connect_reply[0..0] != "\005"
-        raise SOCKSError.new("SOCKS version #{connect_reply[0..0]} is not 5")
+        raise Socksify::SOCKSError.new("SOCKS version #{connect_reply[0..0]} is not 5")
       end
       if connect_reply[1..1] != "\000"
-        raise SOCKSError.for_response_code(connect_reply.bytes.to_a[1])
+        code = connect_reply.bytes.first
+        pp Socksify::SOCKSError.for_response_code(code)
       end
       @@log.debug "Waiting for bind_addr"
-      bind_addr_len = case connect_reply[3..3]
-                      when "\001"
-                        4
-                      when "\003"
-                        receive(1).bytes.first
-                      when "\004"
-                        16
-                      else
-                        raise SOCKSError.for_response_code(connect_reply.bytes.to_a[3])
-                      end
-      bind_addr_s = receive(bind_addr_len)
-      bind_addr = case connect_reply[3..3]
-                  when "\001"
-                    bind_addr_s.bytes.to_a.join('.')
-                  when "\003"
-                    bind_addr_s
-                  when "\004"  # Untested!
-                    i = 0
-                    ip6 = ""
-                    bind_addr_s.each_byte do |b|
-                      if i > 0 && i % 2 == 0
-                        ip6 += ":"
-                      end
-                      i += 1
+      bind_addr_len = 0
+      case connect_reply[3..3]
+      when "\001"
+        bind_addr_len = 4
+      when "\003"
+        msg = receive(1).first
+        bind_addr_len = msg.bytes.first
+      when "\004"
+        bind_addr_len = 16
+      else
+        raise Socksify::SOCKSError.for_response_code(connect_reply.bytes.to_a[3])
+      end
+      # bind_addr_s = receive(bind_addr_len).first
+      # bind_addr = case connect_reply[3..3]
+      #             when "\001"
+      #               bind_addr_s.bytes.to_a.join('.')
+      #             when "\003"
+      #               bind_addr_s
+      #             when "\004"  # Untested!
+      #               i = 0
+      #               ip6 = ""
+      #               bind_addr_s.each_byte do |b|
+      #                 if i > 0 && i % 2 == 0
+      #                   ip6 += ":"
+      #                 end
+      #                 i += 1
 
-                      ip6 += b.to_s(16).rjust(2, '0')
-                    end
-                  end
-      bind_port = receive(bind_addr_len + 2)
-      [bind_addr, bind_port.unpack("n")]
+      #                 ip6 += b.to_s(16).rjust(2, '0')
+      #               end
+      #             end
+      # bind_port = receive(bind_addr_len + 2).first
     else
       connect_reply = receive(8)
       unless connect_reply[0] == "\000" && connect_reply[1] == "\x5A"
         @@log.debug connect_reply.unpack "H"
-        raise SOCKSError.new("Failed while connecting througth socks")
+        raise Socksify::SOCKSError.new("Failed while connecting througth socks")
       end
     end
+    [bind_addr, bind_port]
+  end
+
+  def receive(message_size = 512)
+    message,_ = receive message_size
+    message
+  end
+
+  def receive(message : Bytes) : String
+    bytes_read,_ = receive(message)
+    bytes_read
+  end
+
+  def write(str : Array(String))
+    p str
+    write str.join.to_slice
   end
 end
 

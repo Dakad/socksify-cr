@@ -15,6 +15,7 @@ module Socksify
 
   def self.resolve(host : String)
     s = TCPSocket.new
+
     begin
       req = [] of String
       @@log.debug "Sending hostname to resolve: #{host}"

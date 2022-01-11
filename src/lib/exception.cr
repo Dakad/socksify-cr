@@ -2,7 +2,8 @@ module Socksify
 
   class SOCKSError < RuntimeError
     def initialize(msg)
-      @@log.debug("#{self.class}: #{msg}")
+      # @@log.debug("#{self.class}: #{msg}")
+      p("#{self.class}: #{msg}")
       super
     end
     class ServerFailure < SOCKSError
@@ -65,7 +66,7 @@ module Socksify
       when 8
         AddressTypeNotSupported
       else
-        self
+        self.new("Unknown response code #{code}")
       end
     end
   end
