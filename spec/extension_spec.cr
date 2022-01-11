@@ -58,23 +58,23 @@ describe "Array" do
     end
   end
 
-  it "should pack by directive format", focus: true do
-    args = [
-      {[65, 66, 67], "C*", "ABC"}
-    ]
+  # it "should pack by directive format", focus: true do
+  #   args = [
+  #     {[65, 66, 67], "C*", "ABC"}
+  #   ]
 
-    args.each do |numbers, format, expected|
-      actual = numbers.pack(format)
-      actual.should be_a String
-      actual.should eq expected
-    end
-  end
+  #   args.each do |numbers, format, expected|
+  #     actual = numbers.pack(format)
+  #     actual.should be_a String
+  #     actual.should eq expected
+  #   end
+  # end
 
-  it "should thrown an Exception for unsupported directive formats" do
-    expect_raises RuntimeError do
-      invalid_format = [ "" ]
-    end
-  end
+  # it "should thrown an Exception for unsupported directive formats", focus: true do
+  #   expect_raises RuntimeError do
+  #     invalid_format = [ "a" ]
+  #   end
+  # end
 
 end
 

@@ -1,4 +1,4 @@
-# Mainly to extend String and Array, in order to inject pack  and unpack methods
+# Mainly to monkey-patch Array and String in order to inject pack and unpack methods
 #
 # REF: https://github.com/crystal-lang/crystal/wiki/FAQ#user-content-is-there-an-equivalent-to-rubys-arraypackstringunpack
 # REF: https://therubyist.org/2020/05/07/rewriting-rubys-pack-and-unpack-methods-in-crystal/
@@ -80,7 +80,14 @@ class Array
 
 
   def pack(format : String) : String
-    #TODO Depending on the format directive, call the right static .pack_to method
     raise NotImplementedError.new "Array.pack"
+    # case format[0]
+    # when "c"  then pack_to_c
+    # when "C"  then pack_to_C
+    # when "n"  then pack_to_n
+    # when "N"  then pack_to_N
+    # else
+    #   raise RuntimeError.new "Unsupported directive format '#{format}'"
+    # end
   end
 end
