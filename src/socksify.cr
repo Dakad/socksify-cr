@@ -5,7 +5,7 @@ require "diagnostic_logger"
 
 require "./lib/exception"
 require "./lib/extension"
-require "./lib/tcp_socket"
+require "./lib/tcp_socks_socket"
 require "./lib/http"
 
 module Socksify
@@ -14,7 +14,7 @@ module Socksify
   @@log = DiagnosticLogger.new "socksify-cr", Log::Severity::Debug
 
   def self.resolve(host : String)
-    s = TCPSocket.new(host: nil, port: nil)
+    s = TCPSOCKSSocket.new host, 80
 
     begin
       req = [] of String
@@ -43,15 +43,15 @@ module Socksify
   end
 
   def self.proxy(server : String, port : UInt)
-    default_server = TCPSocket.socks_server
-    default_port = TCPSocket.socks_port
+    default_server = TCPSOCKSSocket.socks_server
+    default_port = TCPSOCKSSocket.socks_port
     begin
-      TCPSocket.socks_server = server
-      TCPSocket.socks_port = port
+      TCPSOCKSSocket.socks_server = server
+      TCPSOCKSSocket.socks_port = port
       yield
     ensure
-      TCPSocket.socks_server = default_server
-      TCPSocket.socks_port = default_port
+      TCPSOCKSSocket.socks_server = default_server
+      TCPSOCKSSocket.socks_port = default_port
     end
   end
 end

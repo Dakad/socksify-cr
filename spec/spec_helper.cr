@@ -5,13 +5,13 @@ module SpecHelper
   extend self
 
   def disable_socks
-    TCPSocket.socks_server = nil
-    TCPSocket.socks_port = nil
+    TCPSOCKSSocket.socks_server = nil
+    TCPSOCKSSocket.socks_port = nil
   end
 
   def enable_socks
-    TCPSocket.socks_server = "127.0.0.1"
-    TCPSocket.socks_port = 9001
+    TCPSOCKSSocket.socks_server = "127.0.0.1"
+    TCPSOCKSSocket.socks_port = 9001
   end
 
   def http_tor_proxy

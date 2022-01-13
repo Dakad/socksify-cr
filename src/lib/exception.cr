@@ -47,24 +47,24 @@ module Socksify
       end
     end
 
-    def self.for_response_code(code)
+    def self.for_response_code(code) : SOCKSError
       case code
       when 1
-        ServerFailure
+        ServerFailure.new
       when 2
-        NotAllowed
+        NotAllowed.new
       when 3
-        NetworkUnreachable
+        NetworkUnreachable.new
       when 4
-        HostUnreachable
+        HostUnreachable.new
       when 5
-        ConnectionRefused
+        ConnectionRefused.new
       when 6
-        TTLExpired
+        TTLExpired.new
       when 7
-        CommandNotSupported
+        CommandNotSupported.new
       when 8
-        AddressTypeNotSupported
+        AddressTypeNotSupported.new
       else
         self.new("Unknown response code #{code}")
       end
