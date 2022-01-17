@@ -1,5 +1,7 @@
 require "socket"
 
+require "./exception"
+
 class TCPSOCKSSocket
   # @@socks_version = "5"
 
@@ -24,7 +26,7 @@ class TCPSOCKSSocket
 
     # delegate to_s, @peer_host
 
-    def initialize(@socks_server, @socks_port, @peer_host)
+    def initialize(@socks_server, @socks_port, @socks_username, @socks_password, @peer_host)
     end
 
     def inspect
@@ -63,6 +65,7 @@ class TCPSOCKSSocket
       @socket = TCPSocket.new host, port
       @@log.debug "Connected to #{host}:#{port}"
     end
+    @socket
   end
 
   # Authentication
