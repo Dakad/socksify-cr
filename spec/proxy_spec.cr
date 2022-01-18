@@ -21,9 +21,9 @@ describe Socksify::HTTPClient do
     # proxy = Socksify::Proxy.new("socks5://198.199.109.36:62287")
     # proxy = Socksify::Proxy.new("socks5://198.199.109.36:62287")
     # proxy = Socksify::Proxy.new("socks4://181.236.221.138:4145")
-    # proxy = Socksify::Proxy.new("http://140.227.238.217:3128")
+    proxy = Socksify::Proxy.new("http://140.227.238.217:3128")
     # proxy = Socksify::Proxy.new("socks5://144.76.224.49:63640")
-    proxy = Socksify::Proxy.new("socks://202.107.74.24:7302")
+    # proxy = Socksify::Proxy.new("socks://202.107.74.24:7302")
     client.set_proxy(proxy)
     response = client.exec("GET", "/ip")
     p! response.body

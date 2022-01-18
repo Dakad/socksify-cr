@@ -12,7 +12,6 @@ module Socksify
 
       begin
         @io = proxy.open(@host, @port)
-        p! @io
       rescue IO::Error
         @io = nil
       end

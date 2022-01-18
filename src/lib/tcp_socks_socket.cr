@@ -52,7 +52,6 @@ class TCPSOCKSSocket < TCPSocket
 
   #   p! socks_server,socks_port#,local_host,local_port,socks_ignores
   #   if socks_server && socks_port && !socks_ignores.includes?(host)
-  #     @@log.debug "Connecting to SOCKS server #{socks_server}:#{socks_port}"
   #     @socket = TCPSocket.new socks_server, socks_port
   #     @@log.debug "SOCKS authentication ..."
   #     socks_authenticate unless @@socks_version =~ /^4/
@@ -65,6 +64,37 @@ class TCPSOCKSSocket < TCPSocket
   #   end
   #   @socket
   # end
+
+  def http_connect(host : String, port : Int32, auth : NamedTuple(username: String, password: String)? = nil)
+    @@log.info "HTTP authentication ..."
+    credentials = Base64.strict_encode("#{auth[:username]}:#{auth[:password]}").gsub(/\s/, "") if auth
+    str = ["CONNECT #{host}:#{port} HTTP/1.0\r\n"]
+    str << "Host: #{host}:#{port}\r\n"
+    str << "Proxy-Authorization: Basic #{credentials}\r\n" if credentials
+    str << "\r\n"
+    @@log.debug "CONNECT header #{str}"
+    write str
+    parse_response
+  end
+
+  private def parse_response
+    res = {} of Symbol => Int32 | String | Hash(String, String)
+
+    begin
+      version, code, reason = gets.as(String).chomp.split(/ /, 3)
+      headers = {} of String => String
+      while (line = gets.as(String)) && (line.chomp != "")
+        name, value = line.split(/:/, 2)
+        headers[name.strip] = value.strip
+      end
+      res[:code] = code.to_i
+      res[:reason] = reason
+      res[:headers] = headers
+    rescue error
+      raise IO::Error.new("parsing proxy initialization", cause: error)
+    end
+    res
+  end
 
   # Authentication
   def socks_authenticate
@@ -150,7 +180,7 @@ class TCPSOCKSSocket < TCPSocket
   end
 
   # returns [bind_addr: String, bind_port: Fixnum]
-  def socks_receive_reply : Tuple(String?, Int32|String)
+  private def socks_receive_reply : Tuple(String?, Int32|String)
     bind_addr = ""
     bind_port = 0
 
@@ -231,7 +261,7 @@ class TCPSOCKSSocket < TCPSocket
 
   def write(str : Array(String))
     # p str
-    super.write str.join.to_slice
+    write str.join.to_slice
   end
 end
 

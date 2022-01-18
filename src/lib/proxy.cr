@@ -73,10 +73,9 @@ module Socksify
     #
     # * :username => the user name to use when authenticating to the proxy
     # * :password => the password to use when authenticating
-    def initialize(@proxy_host : String, @proxy_port : Int32, auth : Credential? = nil, @proxy_scheme :  String = nil)
-      if !auth && self.class.username && self.class.password
-        auth = {username: self.class.username.as(String), password: self.class.password.as(String)}
-        # @credentials = Base64.strict_encode("#{auth[:username]}:#{auth[:password]}").gsub(/\s/, "") if auth
+    def initialize(@proxy_host : String, @proxy_port : Int32, @proxy_auth : Credential? = nil, @proxy_scheme :  String = nil)
+      if !@proxy_auth && self.class.username && self.class.password
+        @proxy_auth = {username: self.class.username.as(String), password: self.class.password.as(String)}
       end
     end
 
@@ -90,8 +89,18 @@ module Socksify
       socket = TCPSOCKSSocket.new @proxy_host, @proxy_port, dns_timeout, connect_timeout
       socket.read_timeout = read_timeout if read_timeout
       socket.sync = true
-      socket.socks_authenticate
-      socket.socks_connect @proxy_host, @proxy_port
+
+      case @proxy_scheme
+      when "http", "https"
+        @@log.info "Connecting to HTTP proxy #{@proxy_host}:#{@proxy_port}"
+        p! @proxy_host, @proxy_port, @proxy_auth
+        resp = socket.http_connect @proxy_host, @proxy_port, @proxy_auth
+        return unless resp[:code]? == 200
+      when "socks", "socks4", "socks5"
+        @@log.info "Connecting to SOCKS proxy #{@proxy_host}:#{@proxy_port}"
+        socket.socks_authenticate
+        socket.socks_connect @proxy_host, @proxy_port
+      end
 
       if tls
         if tls.is_a?(Bool) # true, but we want to get rid of the union
