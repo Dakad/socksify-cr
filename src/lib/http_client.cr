@@ -6,22 +6,17 @@ require "./proxy"
 module Socksify
   class HTTPClient < ::HTTP::Client
 
-    # def self.proxy(p_host, p_port)
-    #   @@socks_server = p_host
-    #   @@socks_port = p_port
-    # end
-
     def set_proxy(proxy : Proxy = nil)
       socket = @io
       return if socket && !socket.closed?
 
       begin
-        @socket = proxy.open(@host, @port)
+        @io = proxy.open(@host, @port)
+        p! @io
       rescue IO::Error
-        # @socket = nil
+        @io = nil
       end
     end
-
 
     def self.new(uri : URI, tls = nil, ignore_env = false)
       inst = super(uri, tls)

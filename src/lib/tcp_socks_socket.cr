@@ -2,12 +2,12 @@ require "socket"
 
 require "./exception"
 
-class TCPSOCKSSocket
+class TCPSOCKSSocket < TCPSocket
   # @@socks_version = "5"
 
   @@log = DiagnosticLogger.new "tcp-socks-socket", Log::Severity::Debug
 
-  forward_missing_to @socket
+  # forward_missing_to @socket
 
   class_getter socks_version : String = "5"
   class_property socks_server : String?
@@ -36,40 +36,38 @@ class TCPSOCKSSocket
 
 
   # See http://tools.ietf.org/html/rfc1928
-  def initialize(host, port)
-    dns_timeout : Int32 = 90
-    connect_timeout = 120
+  # def initialize(host, port)
 
-    if host.is_a? SOCKSConnectionPeerAddress
-      socks_peer = host
-      socks_server = socks_peer.socks_server
-      socks_port = socks_peer.socks_port
-      socks_ignores = [] of String
-      host = socks_peer.peer_host
-    else
-      socks_server = self.class.socks_server
-      socks_port = self.class.socks_port
-      socks_ignores = self.class.socks_ignores
-    end
+  #   if host.is_a? SOCKSConnectionPeerAddress
+  #     socks_peer = host
+  #     socks_server = socks_peer.socks_server
+  #     socks_port = socks_peer.socks_port
+  #     socks_ignores = [] of String
+  #     host = socks_peer.peer_host
+  #   else
+  #     socks_server = self.class.socks_server
+  #     socks_port = self.class.socks_port
+  #     socks_ignores = self.class.socks_ignores
+  #   end
 
-    p! socks_server,socks_port#,local_host,local_port,socks_ignores
-    if socks_server && socks_port && !socks_ignores.includes?(host)
-      @@log.debug "Connecting to SOCKS server #{socks_server}:#{socks_port}"
-      @socket = TCPSocket.new socks_server, socks_port
-      @@log.debug "SOCKS authentication ..."
-      socks_authenticate unless @@socks_version =~ /^4/
-      @@log.debug "SOCKS connect ..."
-      socks_connect(host, port) if host
-    else
-      @@log.debug "Connecting directly to #{host}:#{port}"
-      @socket = TCPSocket.new host, port
-      @@log.debug "Connected to #{host}:#{port}"
-    end
-    @socket
-  end
+  #   p! socks_server,socks_port#,local_host,local_port,socks_ignores
+  #   if socks_server && socks_port && !socks_ignores.includes?(host)
+  #     @@log.debug "Connecting to SOCKS server #{socks_server}:#{socks_port}"
+  #     @socket = TCPSocket.new socks_server, socks_port
+  #     @@log.debug "SOCKS authentication ..."
+  #     socks_authenticate unless @@socks_version =~ /^4/
+  #     @@log.debug "SOCKS connect ..."
+  #     socks_connect(host, port) if host
+  #   else
+  #     @@log.debug "Connecting directly to #{host}:#{port}"
+  #     @socket = TCPSocket.new host, port
+  #     @@log.debug "Connected to #{host}:#{port}"
+  #   end
+  #   @socket
+  # end
 
   # Authentication
-  private def socks_authenticate
+  def socks_authenticate
     if self.class.socks_username || self.class.socks_password
       @@log.debug "Sending username/password authentication"
       send "\005\001\002"
@@ -79,10 +77,11 @@ class TCPSOCKSSocket
     end
 
     @@log.debug "Waiting for authentication reply"
-    auth_reply = receive(2)
+    auth_reply,_ = receive(2)
     if auth_reply.empty?
       raise Socksify::SOCKSError.new("Server doesn't reply authentication")
     end
+    p! auth_reply
     if auth_reply[0..0] != "\004" && auth_reply[0..0] != "\005"
       raise Socksify::SOCKSError.new("SOCKS version #{auth_reply[0..0]} not supported")
     end
@@ -97,7 +96,7 @@ class TCPSOCKSSocket
       auth << self.class.socks_password.to_s
       @@log.debug "Sending auth credentials " + auth.join
       send auth
-      auth_reply = receive(2)
+      auth_reply, _ = receive(2)
       if auth_reply[1..1] != "\000"
         raise Socksify::SOCKSError.new("SOCKS authentication failed")
       end
@@ -155,16 +154,16 @@ class TCPSOCKSSocket
     bind_addr = ""
     bind_port = 0
 
+    # debugger
     @@log.debug "Waiting for SOCKS reply"
     if @@socks_version == "5"
-      connect_reply = receive(4)
+      connect_reply,_ = receive(4)
+      @@log.debug "Reply #{connect_reply.chars}"
       raise Socksify::SOCKSError.new("Server doesn't reply") if connect_reply.empty?
-      # @@log.debug connect_reply.unpack "H*"
-      # if connect_reply[0..0] != "\005"
-      #   @@log.debug connect_reply
-      #   raise Socksify::SOCKSError.new("SOCKS version #{connect_reply[0..0]} is not 5")
-      # end
-      @@log.debug "#{connect_reply}"
+      if connect_reply[0..0] != "\005"
+        @@log.debug connect_reply
+        raise Socksify::SOCKSError.new("SOCKS version #{connect_reply[0..0]} is not 5")
+      end
       if connect_reply[1..1] != "\000"
         code = connect_reply.bytes.first
         pp Socksify::SOCKSError.for_response_code(code)
@@ -175,15 +174,15 @@ class TCPSOCKSSocket
       when "\001"
         bind_addr_len = 4
       when "\003"
-        msg = receive(1)
+        msg,_ = receive(1)
         bind_addr_len = msg.bytes.first
       when "\004"
         bind_addr_len = 16
       else
         raise Socksify::SOCKSError.for_response_code(connect_reply.bytes.to_a[3])
       end
-      @@log.debug "Bind_addr received of size #{bind_addr_len}"
-      bind_addr_s = receive(bind_addr_len)
+      bind_addr_s,_ = receive(bind_addr_len)
+      @@log.debug "Bind_addr received of size #{bind_addr_len}, #{bind_addr_s.chars}"
       bind_addr = case connect_reply[3..3]
                   when "\001"
                     bind_addr_s.bytes.to_a.join('.')
@@ -201,9 +200,9 @@ class TCPSOCKSSocket
                     #   ip6 += b.to_s(16).rjust(2, '0')
                     # end
                   end
-      bind_port = receive(bind_addr_len + 2)
+      bind_port, _ = receive(bind_addr_len + 2)
     else
-      connect_reply = receive(8)
+      connect_reply,_ = receive(8)
       unless connect_reply[0] == "\000" && connect_reply[1] == "\x5A"
         @@log.debug connect_reply#.unpack "H"
         raise Socksify::SOCKSError.new("Failed while connecting througth socks")
@@ -212,13 +211,13 @@ class TCPSOCKSSocket
     {bind_addr, bind_port}
   end
 
-  private def receive(message_size = 512) : String
-    message,_ = @socket.receive message_size
-    message
-  end
+  # def receive(message_size = 512) : String
+  #   message,addr = super.receive message_size
+  #   message
+  # end
 
   def receive(message : Bytes) : String
-    bytes_read,_ = @socket.receive(message)
+    bytes_read,addr = receive(message)
     bytes_read
   end
 
@@ -226,13 +225,13 @@ class TCPSOCKSSocket
     send message.join
   end
 
-  def send(message : String)
-    @socket.send(message)
-  end
+  # def send(message : String)
+  #   super.send(message)
+  # end
 
   def write(str : Array(String))
     # p str
-    @socket.write str.join.to_slice
+    super.write str.join.to_slice
   end
 end
 
