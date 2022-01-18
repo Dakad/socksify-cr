@@ -14,6 +14,8 @@ module Socksify
     class_property verify_tls : Bool = ENV["PROXY_VERIFY_TLS"]? != "false"
     class_property disable_crl_checks : Bool = ENV["PROXY_DISABLE_CRL_CHECKS"]? == "true"
 
+    alias Credential = NamedTuple(username: String, password: String)
+
     # The hostname or IP address of the HTTP proxy.
     getter proxy_host : String
 
@@ -44,6 +46,25 @@ module Socksify
       raise "Missing/malformed $http_proxy or $https_proxy in environment"
     end
 
+    def initialize(url : String)
+      uri = URI.parse url
+      if uri.host.nil?
+        host = url.gsub(/^sock[s]?\:\/\//, "")
+        if host.includes? ":"
+          uri.host, _port = host.split ":"
+          uri.port = _port.to_i
+        else
+          uri.host = host
+          uri.port = 0
+        end
+      end
+      creds = unless uri.user.nil? || uri.password.nil?
+                {username: uri.user.not_nil!,
+                 password: uri.password.not_nil!
+                }
+              end
+      initialize(uri.host.not_nil!, uri.port.not_nil!, creds, uri.scheme || "socks5")
+    end
 
     # Create a new socket factory that tunnels via the given host and
     # port. The +options+ parameter is a hash of additional settings that
@@ -52,14 +73,7 @@ module Socksify
     #
     # * :username => the user name to use when authenticating to the proxy
     # * :password => the password to use when authenticating
-    def initialize(host : String, port : Int32, auth : NamedTuple(username: String, password: String)? = nil)
-      @proxy_host = host.gsub(/^http[s]?\:\/\//, "")
-      if host.includes? ":"
-        @proxy_host, px_port = @proxy_host.split ":"
-        @proxy_port = px_port.to_i
-      else
-        @proxy_port = port
-      end
+    def initialize(@proxy_host : String, @proxy_port : Int32, auth : Credential? = nil, @proxy_scheme :  String = nil)
       if !auth && self.class.username && self.class.password
         auth = {username: self.class.username.as(String), password: self.class.password.as(String)}
         # @credentials = Base64.strict_encode("#{auth[:username]}:#{auth[:password]}").gsub(/\s/, "") if auth
@@ -73,34 +87,29 @@ module Socksify
       connect_timeout = connection_options.fetch(:connect_timeout, nil)
       read_timeout = connection_options.fetch(:read_timeout, nil)
 
-      socket = TCPSOCKSSocket.new @proxy_host, @proxy_port#, dns_timeout, connect_timeout
+      socket = TCPSOCKSSocket.new @proxy_host, @proxy_port, dns_timeout, connect_timeout
       socket.read_timeout = read_timeout if read_timeout
       socket.sync = true
+      socket.socks_authenticate
+      socket.socks_connect @proxy_host, @proxy_port
 
-      # resp = parse_response(socket)
-
-      # if resp[:code]? == 200
-        if tls
-          if tls.is_a?(Bool) # true, but we want to get rid of the union
-            context = OpenSSL::SSL::Context::Client.new
-          else
-            context = tls
-          end
-
-          if !Proxy.verify_tls
-            context.verify_mode = OpenSSL::SSL::VerifyMode::NONE
-          elsif Proxy.disable_crl_checks
-            context.add_x509_verify_flags OpenSSL::SSL::X509VerifyFlags::IGNORE_CRITICAL
-          end
-
-          socket = OpenSSL::SSL::Socket::Client.new(socket, context: context, sync_close: true, hostname: host)
+      if tls
+        if tls.is_a?(Bool) # true, but we want to get rid of the union
+          context = OpenSSL::SSL::Context::Client.new
+        else
+          context = tls
         end
 
-        socket
-      # else
-      #   socket.close
-      #   raise IO::Error.new(resp.inspect)
-      # end
+        if !Proxy.verify_tls
+          context.verify_mode = OpenSSL::SSL::VerifyMode::NONE
+        elsif Proxy.disable_crl_checks
+          context.add_x509_verify_flags OpenSSL::SSL::X509VerifyFlags::IGNORE_CRITICAL
+        end
+
+        socket = OpenSSL::SSL::Socket::Client.new(socket, context: context, sync_close: true, hostname: host)
+      end
+
+      socket
     end
   end
 end
