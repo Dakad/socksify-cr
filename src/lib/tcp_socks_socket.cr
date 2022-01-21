@@ -3,11 +3,8 @@ require "socket"
 require "./exception"
 
 class TCPSOCKSSocket < TCPSocket
-  # @@socks_version = "5"
 
   @@log = DiagnosticLogger.new "tcp-socks-socket", Log::Severity::Debug
-
-  # forward_missing_to @socket
 
   class_getter socks_version : String = "5"
   class_property socks_server : String?
@@ -53,9 +50,7 @@ class TCPSOCKSSocket < TCPSocket
   #   p! socks_server,socks_port#,local_host,local_port,socks_ignores
   #   if socks_server && socks_port && !socks_ignores.includes?(host)
   #     @socket = TCPSocket.new socks_server, socks_port
-  #     @@log.debug "SOCKS authentication ..."
   #     socks_authenticate unless @@socks_version =~ /^4/
-  #     @@log.debug "SOCKS connect ..."
   #     socks_connect(host, port) if host
   #   else
   #     @@log.debug "Connecting directly to #{host}:#{port}"
@@ -98,11 +93,12 @@ class TCPSOCKSSocket < TCPSocket
 
   # Authentication
   def socks_authenticate
+    @@log.info "SOCKS authentication ..."
     if self.class.socks_username || self.class.socks_password
-      @@log.debug "Sending username/password authentication"
+      @@log.info "Sending username/password authentication"
       send "\005\001\002"
     else
-      @@log.debug "Sending no authentication"
+      @@log.info "Sending no authentication"
       send "\005\001\000"
     end
 
@@ -139,6 +135,7 @@ class TCPSOCKSSocket < TCPSocket
 
   # Connect
   def socks_connect(host : String, port : Int)
+    @@log.info "SOCKS connect ..."
     # port = Socket.getservbyname(port) if port.is_a?(String)
     req = [] of String
     @@log.debug "Sending destination address"
@@ -161,7 +158,7 @@ class TCPSOCKSSocket < TCPSocket
     elsif host =~ /^[:0-9a-f]+$/  # to IPv6 address
       raise "TCP/IPv6 over SOCKS is not yet supported (inet_pton missing in Ruby & not supported by Tor"
       req << "\004"
-    else                          # to hostname
+    else        # to hostname
       if @@socks_version == "5"
         req << "\003" + Array.pack_to_C([host.size]) + host
       else
