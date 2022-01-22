@@ -21,6 +21,9 @@ class Socksify::Proxy
   # The port number of the proxy.
   getter proxy_port : Int32
 
+  # The fulll URL of the PROXY starting by the scheme (socks or http)
+  getter proxy_url : String?
+
   # The map of additional options that were given to the object at
   # initialization.
   getter tls : OpenSSL::SSL::Context::Client?
@@ -45,10 +48,10 @@ class Socksify::Proxy
     raise "Missing/malformed $http_proxy or $https_proxy in environment"
   end
 
-  def initialize(url : String)
-    uri = URI.parse url
+  def initialize(@proxy_url : String)
+    uri = URI.parse @proxy_url.not_nil!
     if uri.host.nil?
-      host = url.gsub(/^sock[s]?\:\/\//, "")
+      host = @proxy_url.not_nil!.gsub(/^sock[s]?\:\/\//, "")
       if host.includes? ":"
         uri.host, _port = host.split ":"
         uri.port = _port.to_i
@@ -74,7 +77,7 @@ class Socksify::Proxy
   #
   # * :username => the user name to use when authenticating to the proxy
   # * :password => the password to use when authenticating
-  def initialize(@proxy_host : String, @proxy_port : Int32, @proxy_auth : Credential? = nil, @proxy_scheme :  String = nil)
+  private def initialize(@proxy_host : String, @proxy_port : Int32, @proxy_auth : Credential? = nil, @proxy_scheme :  String = "")
     if !@proxy_auth && self.class.username && self.class.password
       @proxy_auth = {username: self.class.username.as(String), password: self.class.password.as(String)}
     end
@@ -107,6 +110,9 @@ class Socksify::Proxy
       socket.socks_connect @proxy_host, @proxy_port
     end
 
+    p "Return of Proxy.open"
+    p! socket
+
     if tls
       if tls.is_a?(Bool) # true, but we want to get rid of the union
         context = OpenSSL::SSL::Context::Client.new
@@ -124,6 +130,7 @@ class Socksify::Proxy
     end
 
     socket
+    p! socket
   end
 
   def self.config : Config
