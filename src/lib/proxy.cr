@@ -98,8 +98,8 @@ class Socksify::Proxy
     case @proxy_scheme
     when "http", "https"
       @@log.info "Connecting to HTTP proxy #{@proxy_host}:#{@proxy_port}"
-      resp = socket.http_connect @proxy_host, @proxy_port, @proxy_auth
-      @@log.debug "Response after CONNECT #{resp}"
+      resp = socket.http_connect host, port, @proxy_auth
+      @@log.info "Proxy response #{resp[:code]} #{resp[:reason]}"
       unless resp[:code]? == 200
         socket.close
         raise IO::Error.new(resp.inspect)
@@ -109,9 +109,6 @@ class Socksify::Proxy
       socket.socks_authenticate
       socket.socks_connect @proxy_host, @proxy_port
     end
-
-    p "Return of Proxy.open"
-    p! socket
 
     if tls
       if tls.is_a?(Bool) # true, but we want to get rid of the union
@@ -130,7 +127,6 @@ class Socksify::Proxy
     end
 
     socket
-    p! socket
   end
 
   def self.config : Config

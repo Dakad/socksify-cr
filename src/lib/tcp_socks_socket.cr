@@ -18,54 +18,14 @@ class TCPSOCKSSocket < TCPSocket
   end
 
 
-  struct SOCKSConnectionPeerAddress
-    getter :socks_server, :socks_port, :peer_host
-
-    # delegate to_s, @peer_host
-
-    def initialize(@socks_server, @socks_port, @socks_username, @socks_password, @peer_host)
-    end
-
-    def inspect
-      "#{to_s} (via #{@socks_server}:#{@socks_port})"
-    end
-  end
-
-
-  # See http://tools.ietf.org/html/rfc1928
-  # def initialize(host, port)
-
-  #   if host.is_a? SOCKSConnectionPeerAddress
-  #     socks_peer = host
-  #     socks_server = socks_peer.socks_server
-  #     socks_port = socks_peer.socks_port
-  #     socks_ignores = [] of String
-  #     host = socks_peer.peer_host
-  #   else
-  #     socks_server = self.class.socks_server
-  #     socks_port = self.class.socks_port
-  #     socks_ignores = self.class.socks_ignores
-  #   end
-
-  #   p! socks_server,socks_port#,local_host,local_port,socks_ignores
-  #   if socks_server && socks_port && !socks_ignores.includes?(host)
-  #     @socket = TCPSocket.new socks_server, socks_port
-  #     socks_authenticate unless @@socks_version =~ /^4/
-  #     socks_connect(host, port) if host
-  #   else
-  #     @@log.debug "Connecting directly to #{host}:#{port}"
-  #     @socket = TCPSocket.new host, port
-  #     @@log.debug "Connected to #{host}:#{port}"
-  #   end
-  #   @socket
-  # end
-
   def http_connect(host : String, port : Int32, auth : NamedTuple(username: String, password: String)? = nil)
-    @@log.info "HTTP authentication ..."
+    @@log.info "HTTP authentication ..." if auth
     credentials = Base64.strict_encode("#{auth[:username]}:#{auth[:password]}").gsub(/\s/, "") if auth
-    str = ["CONNECT #{host}:#{port} HTTP/1.0\r\n"]
+    str = ["CONNECT #{host}:#{port} HTTP/1.1\r\n"]
     str << "Host: #{host}:#{port}\r\n"
     str << "Proxy-Authorization: Basic #{credentials}\r\n" if credentials
+    str << "User-Agent: curl/7.80.0\r\n"
+    str << "Proxy-Connection: Keep-Alive\r\n"
     str << "\r\n"
     @@log.debug "CONNECT header #{str}"
     write str
@@ -74,26 +34,22 @@ class TCPSOCKSSocket < TCPSocket
 
   private def parse_response
     res = {} of Symbol => Int32 | String | Hash(String, String)
-
-    begin
-      version, code, reason = gets.as(String).chomp.split(/ /, 3)
-      headers = {} of String => String
-      while (line = gets.as(String)) && (line.chomp != "")
-        name, value = line.split(/:/, 2)
-        headers[name.strip] = value.strip
-      end
-      res[:code] = code.to_i
-      res[:reason] = reason
-      res[:headers] = headers
-    rescue error
-      raise IO::Error.new("parsing proxy initialization", cause: error)
+    headers = {} of String => String
+    version, code, reason = gets.as(String).chomp.split(/ /, 3)
+    while (line = gets.as(String)) && (line.chomp != "")
+      name, value = line.split(/:/, 2)
+      headers[name.strip] = value.strip
     end
+    res[:code] = code.to_i
+    res[:reason] = reason
+    res[:headers] = headers
     res
+  rescue err
+    raise IO::Error.new("parsing proxy initialization", cause: err)
   end
 
   # Authentication
   def socks_authenticate
-    @@log.info "SOCKS authentication ..."
     if self.class.socks_username || self.class.socks_password
       @@log.info "Sending username/password authentication"
       send "\005\001\002"
@@ -107,7 +63,6 @@ class TCPSOCKSSocket < TCPSocket
     if auth_reply.empty?
       raise Socksify::SOCKSError.new("Server doesn't reply authentication")
     end
-    p! auth_reply
     if auth_reply[0..0] != "\004" && auth_reply[0..0] != "\005"
       raise Socksify::SOCKSError.new("SOCKS version #{auth_reply[0..0]} not supported")
     end
@@ -181,7 +136,6 @@ class TCPSOCKSSocket < TCPSocket
     bind_addr = ""
     bind_port = 0
 
-    # debugger
     @@log.debug "Waiting for SOCKS reply"
     if @@socks_version == "5"
       connect_reply,_ = receive(4)
@@ -257,7 +211,7 @@ class TCPSOCKSSocket < TCPSocket
   # end
 
   def write(str : Array(String))
-    # p str
+    p str
     write str.join.to_slice
   end
 end
