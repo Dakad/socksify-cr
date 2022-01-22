@@ -7,3 +7,19 @@ authors:
 crystal: 1.3.0
 
 license: MIT
+
+dependencies:
+  diagnostic_logger:
+    github: dakad/diagnostic_logger.cr
+    version: 3.1.0
+
+development_dependencies:
+
+targets:
+  socksify:
+    main: src/socksify.cr
+  simple:
+    main: examples/simple.cr
+
+
+
