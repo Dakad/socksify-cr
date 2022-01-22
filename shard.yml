@@ -10,8 +10,10 @@ license: MIT
 
 dependencies:
   diagnostic_logger:
-    github: dakad/diagnostic_logger
+    github: dakad/diagnostic_logger.cr
     version: 3.1.0
+
+development_dependencies:
 
 targets:
   socksify:
@@ -19,6 +21,5 @@ targets:
   simple:
     main: examples/simple.cr
 
-development_dependencies:
 
 

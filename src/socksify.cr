@@ -10,7 +10,7 @@ require "./lib/socks_proxy_delta"
 require "./lib/http_client"
 
 module Socksify
-  VERSION = "0.1.0"
+  VERSION = {{ system(%(shards version "#{__DIR__}")).chomp.stringify.downcase }}
 
   @@log = DiagnosticLogger.new "socksify-cr", Log::Severity::Debug
 
