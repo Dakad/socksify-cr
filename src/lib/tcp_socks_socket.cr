@@ -1,7 +1,5 @@
 require "socket"
 
-require "./exception"
-
 class TCPSOCKSSocket < TCPSocket
 
   @@log = DiagnosticLogger.new "tcp-socks-socket", Log::Severity::Debug
@@ -238,7 +236,7 @@ class TCPSOCKSSocket < TCPSocket
       #   X'09' to X'FF' unassigned
       if connect_reply[1..1] != "\000"
         code = connect_reply.bytes.first
-        pp Socksify::SOCKSError.for_response_code(code)
+        pp Socksify::SOCKSError.from_response_code(code)
       end
 
       # ATYP: Address type
@@ -256,7 +254,7 @@ class TCPSOCKSSocket < TCPSocket
       when "\004"
         bind_addr_len = 16
       else
-        raise Socksify::SOCKSError.for_response_code(connect_reply.bytes.to_a[3])
+        raise Socksify::SOCKSError.from_response_code(connect_reply.bytes.to_a[3])
       end
 
       # BIND.ADDR: Server bound addess.
