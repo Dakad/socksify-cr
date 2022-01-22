@@ -6,8 +6,8 @@ require "diagnostic_logger"
 require "./lib/exception"
 require "./lib/extension"
 require "./lib/tcp_socks_socket"
-require "./lib/socks_proxy_delta"
 require "./lib/http_client"
+require "./lib/proxy"
 
 module Socksify
   VERSION = {{ system(%(shards version "#{__DIR__}")).chomp.stringify.downcase }}
