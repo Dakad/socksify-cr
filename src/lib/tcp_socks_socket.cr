@@ -1,6 +1,6 @@
 require "socket"
 
-class TCPSOCKSSocket < TCPSocket
+class Socksify::TCPSOCKSSocket < TCPSocket
 
   @@log = DiagnosticLogger.new "tcp-socks-socket", Log::Severity::Debug
 

@@ -7,13 +7,13 @@ class Socksify::Proxy
   alias Credential = NamedTuple(username: String, password: String)
 
   @@log = DiagnosticLogger.new "proxy-cr", Log::Severity::Debug
-  @@global_config : Config?
 
   class_property username : String? = ENV["PROXY_USERNAME"]?
   class_property password : String? = ENV["PROXY_PASSWORD"]?
   class_property proxy_uri : String? = ENV["PROXY_URI"]?
   class_property verify_tls : Bool = ENV["PROXY_VERIFY_TLS"]? != "false"
   class_property disable_crl_checks : Bool = ENV["PROXY_DISABLE_CRL_CHECKS"]? == "true"
+  class_getter global_config : Config = Config.new
 
   # The hostname or IP address of the HTTP proxy.
   getter proxy_host : String
@@ -129,20 +129,19 @@ class Socksify::Proxy
     socket
   end
 
-  def self.config : Config
-    @@global_config ||= Config.new
-    @@global_config.not_nil!
+  def self.config
+    @@global_config
   end
 
   def self.configure
-    @@global_config ||= Config.new
-    yield(@@global_config.not_nil!)
+    # @@global_config ||= Config.new
+    yield(@@global_config)
   end
 
   class Config
-    property connect_timeout_sec = 60
-    property timeout_sec = 60
-    property max_retries = 2
+    property connect_timeout_sec : Int32 = 60
+    property timeout_sec : Int32 = 60
+    property max_retries : Int32 = 2
 
     getter proxy
 
