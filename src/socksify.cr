@@ -16,6 +16,7 @@ module Socksify
   @@log = DiagnosticLogger.new "socksify-cr", Log::Severity::Debug
 
   Retriable.configure do |settings|
+    p! Proxy.config.max_retries
     # Number of attempts to make at running your code block (includes initial attempt)
     settings.max_attempts = Proxy.config.max_retries
 
@@ -26,14 +27,14 @@ module Socksify
     settings.max_interval = 2.minute
 
     # The maximum amount of total time that block code is allowed to keep being retried.
-    settings.max_elapsed_time = 3.minutes
+    settings.max_elapsed_time = 4.minutes
 
     # Use Exponential backoff strategy
     settings.backoff = true
 
     # Proc to call after each try is rescued
     settings.on_retry = ->(ex : Exception, attempt : Int32, elapsed_time : Time::Span, next_interval : Time::Span) do
-      p "#{ex.class}: '#{ex.message}' - #{attempt} attempt in #{elapsed_time} sec and #{next_interval} sec until the next try."
+      @@log.warn "#{ex.class}: '#{ex.message}' - #{attempt} attempt in #{elapsed_time} sec and #{next_interval} sec until the next try."
     end
   end
 
