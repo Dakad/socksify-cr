@@ -105,9 +105,14 @@ class Socksify::Proxy
         raise IO::Error.new(resp.inspect)
       end
     when "socks", "socks4", "socks5"
-      @@log.info "Connecting to SOCKS proxy #{@proxy_host}:#{@proxy_port}"
-      socket.socks_authenticate
-      socket.socks_connect @proxy_host, @proxy_port
+      begin
+        @@log.info "Connecting to SOCKS proxy #{@proxy_host}:#{@proxy_port}"
+        socket.socks_authenticate
+        socket.socks_connect host, port
+      rescue e : Socksify::SOCKSError
+        socket.close
+        raise IO::Error.new(e.message)
+      end
     end
 
     if tls

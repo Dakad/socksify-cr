@@ -236,7 +236,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
       #   X'09' to X'FF' unassigned
       if connect_reply[1..1] != "\000"
         code = connect_reply.bytes.first
-        pp Socksify::SOCKSError.from_response_code(code)
+        raise Socksify::SOCKSError.from_response_code(code)
       end
 
       # ATYP: Address type
@@ -286,7 +286,6 @@ class Socksify::TCPSOCKSSocket < TCPSocket
       # will also probably be 00 (dummy value :/)
       bind_port, _ = receive(bind_addr_len + 2)
       bind_port = bind_port.bytes.reverse.map_with_index { |nb, i| nb * (10**i) }.sum.to_i32
-      p! bind_port
     else
       connect_reply,_ = receive(8)
       unless connect_reply[0] == "\000" && connect_reply[1] == "\x5A"
