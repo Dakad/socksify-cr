@@ -1,5 +1,5 @@
 name: socksify
-version: 0.1.0
+version: 0.2.0
 
 authors:
   - DakaD <3106338+Dakad@users.noreply.github.com>
@@ -12,6 +12,9 @@ dependencies:
   diagnostic_logger:
     github: dakad/diagnostic_logger.cr
     version: 3.1.0
+  retriable:
+    github: Sija/retriable.cr
+    version: 0.2.4
 
 development_dependencies:
 

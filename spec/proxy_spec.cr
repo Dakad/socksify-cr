@@ -27,4 +27,15 @@ describe Socksify::HTTPClient do
     client.close
   end
 
+it "connect to a website through SOCKS proxy" do
+    host = URI.parse("https://ifconfig.me")
+    client = Socksify::HTTPClient.new(host, ignore_env: true)
+    proxy = Socksify::Proxy.new("socks://127.0.0.1:9150")
+    client.set_proxy(proxy)
+    response = client.exec("GET", "/ip")
+    response.success?.should eq(true)
+    # response.body.to_s.should eq(proxy.proxy_host)
+    client.close
+  end
+
 end

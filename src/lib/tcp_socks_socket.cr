@@ -1,8 +1,6 @@
 require "socket"
 
-require "./exception"
-
-class TCPSOCKSSocket < TCPSocket
+class Socksify::TCPSOCKSSocket < TCPSocket
 
   @@log = DiagnosticLogger.new "tcp-socks-socket", Log::Severity::Debug
 
@@ -193,7 +191,7 @@ class TCPSOCKSSocket < TCPSocket
 
     # DST.PORT: Host destination port in network byte order (Big endian)
     req << Array.pack_to_n [port] if @@socks_version == "5"
-    @@log.debug "Send connect req: #{req.join}"
+    # @@log.debug "Send connect req: #{req.join.chomp}"
     send req
 
     s_addr, s_port = socks_receive_reply
@@ -238,7 +236,7 @@ class TCPSOCKSSocket < TCPSocket
       #   X'09' to X'FF' unassigned
       if connect_reply[1..1] != "\000"
         code = connect_reply.bytes.first
-        pp Socksify::SOCKSError.for_response_code(code)
+        raise Socksify::SOCKSError.from_response_code(code)
       end
 
       # ATYP: Address type
@@ -256,7 +254,7 @@ class TCPSOCKSSocket < TCPSocket
       when "\004"
         bind_addr_len = 16
       else
-        raise Socksify::SOCKSError.for_response_code(connect_reply.bytes.to_a[3])
+        raise Socksify::SOCKSError.from_response_code(connect_reply.bytes.to_a[3])
       end
 
       # BIND.ADDR: Server bound addess.
@@ -287,16 +285,13 @@ class TCPSOCKSSocket < TCPSocket
       # BIND.PORT: Server bound port
       # will also probably be 00 (dummy value :/)
       bind_port, _ = receive(bind_addr_len + 2)
-      bind_port = bind_port.bytes.reverse.map_with_index { |nb, i| nb * (10**i) }.sum.to_i32
-      p! bind_port
+      bind_port = bind_port.bytes.reverse.map_with_index { |nb, i| nb.to_i * (10**i) }.sum.to_i32
     else
       connect_reply,_ = receive(8)
       unless connect_reply[0] == "\000" && connect_reply[1] == "\x5A"
-        # @@log.debug connect_reply#.unpack "H"
         raise Socksify::SOCKSError.new("Failed while connecting througth socks")
       end
     end
-    p! bind_addr, bind_port
     {bind_addr, bind_port}
   end
 
