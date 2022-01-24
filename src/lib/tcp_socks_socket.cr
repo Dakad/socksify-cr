@@ -191,7 +191,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
 
     # DST.PORT: Host destination port in network byte order (Big endian)
     req << Array.pack_to_n [port] if @@socks_version == "5"
-    @@log.debug "Send connect req: #{req.join}"
+    # @@log.debug "Send connect req: #{req.join.chomp}"
     send req
 
     s_addr, s_port = socks_receive_reply

@@ -13,7 +13,7 @@ class Socksify::Proxy
   class_property proxy_uri : String? = ENV["PROXY_URI"]?
   class_property verify_tls : Bool = ENV["PROXY_VERIFY_TLS"]? != "false"
   class_property disable_crl_checks : Bool = ENV["PROXY_DISABLE_CRL_CHECKS"]? == "true"
-  class_getter global_config : Config = Config.new
+  class_getter config : Config { Config.new }
 
   # The hostname or IP address of the HTTP proxy.
   getter proxy_host : String
@@ -134,28 +134,24 @@ class Socksify::Proxy
     socket
   end
 
-  def self.config
-    @@global_config
-  end
-
   def self.configure
-    # @@global_config ||= Config.new
-    yield(@@global_config)
+    yield config
   end
 
   class Config
     property connect_timeout_sec : Int32 = 60
     property timeout_sec : Int32 = 60
-    property max_retries : Int32 = 2
+
+    getter max_retries : Int32 = 1
+    def max_retries=(@max_retries)
+      Retriable.configure { |settings| settings.max_attempts = @max_retries }
+    end
 
     getter proxy
-
     def proxy=(proxies)
       @proxy = proxies.split /,|;/
     end
 
-    # def initialize(@proxy : String = "", @connect_timeout_sec : Int32 = 50, @timeout_sec : Int32 = 60, @max_retries : Int32 = 2)
-    # end
   end   # Proxy::Config
 
 end     # Socksify::Proxy

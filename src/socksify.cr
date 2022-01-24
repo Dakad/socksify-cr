@@ -16,9 +16,8 @@ module Socksify
   @@log = DiagnosticLogger.new "socksify-cr", Log::Severity::Debug
 
   Retriable.configure do |settings|
-    p! Proxy.config.max_retries
     # Number of attempts to make at running your code block (includes initial attempt)
-    settings.max_attempts = Proxy.config.max_retries
+    # settings.max_attempts = Proxy.config.max_retries
 
     # The initial interval between tries.
     settings.base_interval = 30.seconds
