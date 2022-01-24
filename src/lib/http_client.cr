@@ -8,9 +8,8 @@ class Socksify::HTTPClient < ::HTTP::Client
 
   getter proxy_url : String? = nil
 
-    def set_proxy(proxy : Proxy = nil)
-      socket = @io
-      return if socket && !socket.closed?
+  # Determine if HTTP request can skip proxy if failed to connect
+  @skip_proxy : Bool = false
 
   def set_proxy(proxy : Proxy = nil)
     socket = @io

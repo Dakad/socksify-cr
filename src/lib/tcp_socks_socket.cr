@@ -285,15 +285,13 @@ class Socksify::TCPSOCKSSocket < TCPSocket
       # BIND.PORT: Server bound port
       # will also probably be 00 (dummy value :/)
       bind_port, _ = receive(bind_addr_len + 2)
-      bind_port = bind_port.bytes.reverse.map_with_index { |nb, i| nb * (10**i) }.sum.to_i32
+      bind_port = bind_port.bytes.reverse.map_with_index { |nb, i| nb.to_i * (10**i) }.sum.to_i32
     else
       connect_reply,_ = receive(8)
       unless connect_reply[0] == "\000" && connect_reply[1] == "\x5A"
-        # @@log.debug connect_reply#.unpack "H"
         raise Socksify::SOCKSError.new("Failed while connecting througth socks")
       end
     end
-    p! bind_addr, bind_port
     {bind_addr, bind_port}
   end
 
