@@ -50,7 +50,9 @@ end
 
 ## Development
 
-Run ``crystal spec`` to run project's tests. You can also manually run the examples under ``/examples``
+Run ``crystal spec`` to run project's tests. To run and setup a real SOCKS server, we can use this [lib under docker](https://github.com/PeterDaveHello/tor-socks-proxy)
+
+You can also manually run the examples under ``/examples``
 
 To debug, follow this [link's guide](https://github.com/amberframework/docs/blob/29560f6/examples/crystal-debug.md) to setup gdb/lldb with VSCode.
 
