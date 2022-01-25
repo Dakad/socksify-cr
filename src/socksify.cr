@@ -1,19 +1,14 @@
 # TODO: Write documentation for `Socksify`
 
-require "diagnostic_logger"
 require "retriable"
 require "retriable/core_ext/kernel"
 
-require "./lib/exception"
-require "./lib/extension"
-require "./lib/tcp_socks_socket"
-require "./lib/http_client"
-require "./lib/proxy"
+require "./lib/*"
 
 module Socksify
-  VERSION = {{ system(%(shards version "#{__DIR__}")).chomp.stringify.downcase }}
+  extend Logger
 
-  @@log = DiagnosticLogger.new "socksify-cr", Log::Severity::Debug
+  VERSION = {{ system(%(shards version "#{__DIR__}")).chomp.stringify.downcase }}
 
   Retriable.configure do |settings|
     # Number of attempts to make at running your code block (includes initial attempt)
@@ -33,7 +28,7 @@ module Socksify
 
     # Proc to call after each try is rescued
     settings.on_retry = ->(ex : Exception, attempt : Int32, elapsed_time : Time::Span, next_interval : Time::Span) do
-      @@log.warn "#{ex.class}: '#{ex.message}' - #{attempt} attempt in #{elapsed_time} sec and #{next_interval} sec until the next try."
+      logger.warn "#{ex.class}: '#{ex.message}' - #{attempt} attempt in #{elapsed_time} sec and #{next_interval} sec until the next try."
     end
   end
 
@@ -45,7 +40,7 @@ module Socksify
 
   #   begin
   #     req = [] of String
-  #     @@log.debug "Sending hostname to resolve: #{host}"
+  #     logger.debug "Sending hostname to resolve: #{host}"
   #     req << "\005"
   #     if Socket.ip? host # to IPv4 address
   #       _ip = "\xF1\000\001"
@@ -58,11 +53,11 @@ module Socksify
   #       req << "\xF0\000\003" + Array.pack_to_C([host.size]) + host
   #     end
   #     req << Array.pack_to_n [0]  # Port
-  #     @@log.debug "Sending #{req}"
+  #     logger.debug "Sending #{req}"
   #     s.write req
 
   #     addr, _port = s.socks_receive_reply
-  #     @@log.notice "Resolved #{host} as #{addr}:#{_port} over SOCKS"
+  #     logger.notice "Resolved #{host} as #{addr}:#{_port} over SOCKS"
   #     addr
   #   ensure
   #     s.close

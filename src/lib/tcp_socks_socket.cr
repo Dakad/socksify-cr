@@ -1,8 +1,9 @@
 require "socket"
 
-class Socksify::TCPSOCKSSocket < TCPSocket
+require "./logger"
 
-  @@log = DiagnosticLogger.new "tcp-socks-socket", Log::Severity::Debug
+class Socksify::TCPSOCKSSocket < TCPSocket
+  extend Logger
 
   class_getter socks_version : String = "5"
   class_property socks_server : String?
@@ -17,7 +18,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
 
 
   def http_connect(host : String, port : Int32, auth : NamedTuple(username: String, password: String)? = nil)
-    @@log.info "HTTP authentication ..." if auth
+    TCPSOCKSSocket.logger.info "HTTP authentication ..." if auth
     credentials = Base64.strict_encode("#{auth[:username]}:#{auth[:password]}").gsub(/\s/, "") if auth
     str = ["CONNECT #{host}:#{port} HTTP/1.1\r\n"]
     str << "Host: #{host}:#{port}\r\n"
@@ -25,7 +26,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
     str << "User-Agent: curl/7.80.0\r\n"
     str << "Proxy-Connection: Keep-Alive\r\n"
     str << "\r\n"
-    @@log.debug "CONNECT header #{str}"
+    TCPSOCKSSocket.logger.debug "CONNECT header #{str}"
     write str
     parse_response
   end
@@ -59,10 +60,10 @@ class Socksify::TCPSOCKSSocket < TCPSocket
     #   0 for no authentication
     #   2 for username/password. See RFC1929: https://www.rfc-editor.org/rfc/rfc1929.html
     if self.class.socks_username || self.class.socks_password
-      @@log.info "Sending username/password authentication"
+      TCPSOCKSSocket.logger.info "Sending username/password authentication"
       send "\005\001\002"
     else
-      @@log.info "Sending no authentication"
+      TCPSOCKSSocket.logger.info "Sending no authentication"
       send "\005\001\000"
     end
 
@@ -75,7 +76,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
     # STATUS contains 2 possible values for requested nauth. method
     #   0 for success
     #   else it's considered failure :(
-    @@log.debug "Waiting for authentication reply"
+    TCPSOCKSSocket.logger.debug "Waiting for authentication reply"
     auth_reply,_ = receive(2)
     if auth_reply.empty?
       raise Socksify::SOCKSError.new("Server doesn't reply authentication")
@@ -112,7 +113,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
     auth << self.class.socks_username.to_s
     auth << self.class.socks_password.not_nil!.bytesize.to_s
     auth << self.class.socks_password.to_s
-    @@log.debug "Sending auth credentials " + auth.join
+    TCPSOCKSSocket.logger.debug "Sending auth credentials " + auth.join
     send auth
 
     # Server response format:
@@ -146,11 +147,11 @@ class Socksify::TCPSOCKSSocket < TCPSocket
     #   X'02': Bind -  TCP/IP port binding
     #   X'03': UPD ASSOC - Assoc a UDP port
     # RSV: RESERVED, always set to X'00'
-    @@log.info "SOCKS connect ..."
-    @@log.debug "Sending client host address"
+    TCPSOCKSSocket.logger.info "SOCKS connect ..."
+    TCPSOCKSSocket.logger.debug "Sending client host address"
     req = [] of String
     req << TCPSOCKSSocket.socks_version
-    @@log.debug TCPSOCKSSocket.socks_version#.unpack "H*"
+    TCPSOCKSSocket.logger.debug TCPSOCKSSocket.socks_version#.unpack "H*"
     req << "\001"
     req << "\000" if @@socks_version == "5"
     req << Array.pack_to_n [port] if @@socks_version =~ /^4/
@@ -191,11 +192,11 @@ class Socksify::TCPSOCKSSocket < TCPSocket
 
     # DST.PORT: Host destination port in network byte order (Big endian)
     req << Array.pack_to_n [port] if @@socks_version == "5"
-    # @@log.debug "Send connect req: #{req.join.chomp}"
+    # TCPSOCKSSocket.logger.debug "Send connect req: #{req.join.chomp}"
     send req
 
     s_addr, s_port = socks_receive_reply
-    @@log.debug "Connected to #{s_addr}:#{s_port} over SOCKS"
+    TCPSOCKSSocket.logger.debug "Connected to #{s_addr}:#{s_port} over SOCKS"
   end
 
   # returns [bind_addr: String, bind_port: Int]
@@ -214,10 +215,10 @@ class Socksify::TCPSOCKSSocket < TCPSocket
     # VER: SOCKS version (X'05' or X'04')
     # RSV: RESERVED, always X'00'
 
-    @@log.debug "Waiting for SOCKS reply"
+    TCPSOCKSSocket.logger.debug "Waiting for SOCKS reply"
     if @@socks_version == "5"
       connect_reply,_ = receive(4)
-      @@log.debug "Reply #{connect_reply.chars}"
+      TCPSOCKSSocket.logger.debug "Reply #{connect_reply.chars}"
       raise Socksify::SOCKSError.new("Server doesn't reply") if connect_reply.empty?
       if connect_reply[0..0] != "\005"
         raise Socksify::SOCKSError.new("SOCKS version #{connect_reply[0..0]} is not 5")
@@ -244,7 +245,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
       #   X'03': Domain name,
       #   X'04': IPv6 address, 16 bytes
       bind_addr_len = 0
-      @@log.debug "Waiting for bind_addr"
+      TCPSOCKSSocket.logger.debug "Waiting for bind_addr"
       case connect_reply[3..3]
       when "\001"
         bind_addr_len = 4
@@ -261,7 +262,7 @@ class Socksify::TCPSOCKSSocket < TCPSocket
       # Will probably be 0.0.0.0 (dummy data :/). The local machine has no need to know  this info.
       # Not an issue since the server will do a DNS resolution before fetching the page
       bind_addr_s, _ = receive(bind_addr_len)
-      @@log.debug "Bind_addr received of size #{bind_addr_len}, #{bind_addr_s.chars}"
+      TCPSOCKSSocket.logger.debug "Bind_addr received of size #{bind_addr_len}, #{bind_addr_s.chars}"
       bind_addr = case connect_reply[3..3]
                   when "\001"
                     bind_addr_s.bytes.to_a.join('.')

@@ -1,10 +1,9 @@
 require "http"
 
-require "./proxy"
+require "./logger"
 
 class Socksify::HTTPClient < ::HTTP::Client
-
-  @@log = DiagnosticLogger.new "http-client", ::Log::Severity::Debug
+  extend Logger
 
   getter proxy_url : String? = nil
 
@@ -21,16 +20,16 @@ class Socksify::HTTPClient < ::HTTP::Client
         @io = proxy.open(@host, @port, @tls,  **proxy_connection_options)
       end
     rescue e : IO::Error
-      @@log.fatal "Proxy could not opened : #{e}"
+      HTTPClient.logger.fatal "Proxy could not opened : #{e}"
       abort 100 unless @skip_proxy
       # @io = nil
     end
-    @@log.debug "my HTTPClient#set_proxy  proxy.open->io  #{@io.inspect}"
+    HTTPClient.logger.debug "my HTTPClient#set_proxy  proxy.open->io  #{@io.inspect}"
   end
 
   private def io
     io = @io
-    # @@log.debug "my HTTPClient->io #{io.inspect}"
+    # HTTPClient.logger.debug "my HTTPClient->io #{io.inspect}"
     return io if io
 
     set_proxy Proxy.new @proxy_url.not_nil! unless @proxy_url.nil?

@@ -1,17 +1,15 @@
 class Socksify::SOCKSError < RuntimeError
   def initialize(msg)
-    # @@log.debug("#{self.class}: #{msg}")
     super
-    p("#{self.class}: #{msg}")
   end
   class ServerFailure < SOCKSError
     def initialize
-      super("general SOCKS server failure")
+      super("General SOCKS server failure")
     end
   end
   class NotAllowed < SOCKSError
     def initialize
-      super("connection not allowed by ruleset")
+      super("Connection not allowed by ruleset")
     end
   end
   class NetworkUnreachable < SOCKSError

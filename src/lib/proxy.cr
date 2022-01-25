@@ -1,12 +1,13 @@
 require "openssl"
 
 require "./exception"
+require "./logger"
 require "./tcp_socks_socket"
 
 class Socksify::Proxy
-  alias Credential = NamedTuple(username: String, password: String)
+  extend Logger
 
-  @@log = DiagnosticLogger.new "proxy-cr", Log::Severity::Debug
+  alias Credential = NamedTuple(username: String, password: String)
 
   class_property username : String? = ENV["PROXY_USERNAME"]?
   class_property password : String? = ENV["PROXY_PASSWORD"]?
@@ -90,23 +91,23 @@ class Socksify::Proxy
     connect_timeout = connection_options[:connect_timeout] || Proxy.config.connect_timeout_sec
     read_timeout = connection_options[:read_timeout] || Proxy.config.timeout_sec
 
-    @@log.debug "Creating TCPSOCKSSocket"
+    Proxy.logger.debug "Creating TCPSOCKSSocket"
     socket = TCPSOCKSSocket.new @proxy_host, @proxy_port, dns_timeout, connect_timeout
     socket.read_timeout = read_timeout if read_timeout
     socket.sync = true
 
     case @proxy_scheme
     when "http", "https"
-      @@log.info "Connecting to HTTP proxy #{@proxy_host}:#{@proxy_port}"
+      Proxy.logger.info "Connecting to HTTP proxy #{@proxy_host}:#{@proxy_port}"
       resp = socket.http_connect host, port, @proxy_auth
-      @@log.info "Proxy response #{resp[:code]} #{resp[:reason]}"
+      Proxy.logger.info "Proxy response #{resp[:code]} #{resp[:reason]}"
       unless resp[:code]? == 200
         socket.close
         raise IO::Error.new(resp.inspect)
       end
     when "socks", "socks4", "socks5"
       begin
-        @@log.info "Connecting to SOCKS proxy #{@proxy_host}:#{@proxy_port}"
+        Proxy.logger.info "Connecting to SOCKS proxy #{@proxy_host}:#{@proxy_port}"
         socket.socks_authenticate
         socket.socks_connect host, port
       rescue e : Socksify::SOCKSError
