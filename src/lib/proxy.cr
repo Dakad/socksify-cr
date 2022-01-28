@@ -30,21 +30,9 @@ class Socksify::Proxy
 
   # Simple check for relevant environment
   def self.has_fallback_proxy?
-    config.fallback_proxy_uri?
+    config.fallback_proxy_url?
   end
 
-  # Grab the host, port from URI
-  def self.parse_proxy_url
-    proxy_url = config.fallback_proxy_uri.not_nil!
-    uri = URI.parse(proxy_url)
-    host = uri.host.not_nil!
-    scheme = uri.scheme || "socks5"
-    port = uri.port || URI.default_port(scheme.not_nil!).not_nil!
-    creds = { username: uri.user, password: uri.password } if uri.userinfo
-    { host, port, creds, scheme }
-  rescue
-    raise RuntimeError.new "Missing/malformed PROXY_URI in environment"
-  end
 
   def initialize(@proxy_url : String)
     uri = URI.parse @proxy_url.not_nil!
@@ -134,7 +122,7 @@ class Socksify::Proxy
   end
 
   class Config
-    property? fallback_proxy_uri : String? = ENV["PROXY_URI"]?
+    property! fallback_proxy_url : String? = ENV["PROXY_URL"]
     property connect_timeout_sec : Int32 = 60
     property timeout_sec : Int32 = 60
 
@@ -152,7 +140,7 @@ class Socksify::Proxy
       @connect_timeout = 60
       @timeout_sec = 60
       @max_retries = 1
-      @fallback_proxy_uri = ENV["PROXY_URI"]?
+      @fallback_proxy_url = ENV["PROXY_URL"]?
     end
   end   # Proxy::Config
 
