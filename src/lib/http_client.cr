@@ -8,7 +8,7 @@ class Socksify::HTTPClient < ::HTTP::Client
   getter proxy_url : String? = nil
 
   # Determine if HTTP request can skip proxy if failed to connect
-  getter skip_proxy : Bool = false
+  setter skip_proxy : Bool = false
 
   def set_proxy(proxy : Proxy = nil, is_fallback = false)
     socket = @io
@@ -35,7 +35,7 @@ class Socksify::HTTPClient < ::HTTP::Client
     begin
       set_proxy(Proxy.new @proxy_url.not_nil!) unless @proxy_url.nil?
     rescue e : IO::Error  # TODO: Replace by the specific ConnectionError
-      if @skip_proxy && Proxy.has_fallback_proxy?
+      if Proxy.has_fallback_proxy?
         set_proxy(Proxy.new(Proxy.config.fallback_proxy_url), is_fallback: true)
       end
     end
@@ -47,13 +47,13 @@ class Socksify::HTTPClient < ::HTTP::Client
   def self.new(uri : URI, tls = nil, ignore_config = false)
     inst = super(uri, tls)
     if !ignore_config && Proxy.has_fallback_proxy?
-      inst.set_proxy Proxy.new(Proxy.config.fallback_proxy_url)
+      inst.set_proxy(Proxy.new(Proxy.config.fallback_proxy_url), is_fallback: true)
     end
     inst
   end
 
-  def self.new(uri : URI, tls = nil, ignore_env = false)
-    yield new(uri, tls, ignore_env)
+  def self.new(uri : URI, tls = nil, ignore_config = false)
+    yield new(uri, tls, ignore_config)
   end
 
   def proxy_connection_options

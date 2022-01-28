@@ -7,7 +7,7 @@ Socksify::Proxy.configure do |config|
 end
 
 host = "https://ipconfig.me"
-client = Socksify::HTTPClient.new(URI.parse(host), ignore_env: true)
+client = Socksify::HTTPClient.new(URI.parse(host), ignore_config: true)
 proxy = Socksify::Proxy.new("socks://192.111.130.5:17002")
 # proxy = Socksify::Proxy.new("socks5://198.199.109.36:62287")
 # proxy = Socksify::Proxy.new("socks4://181.236.221.138:4145")
