@@ -141,7 +141,13 @@ class Socksify::Proxy
 
   class Config
     property connect_timeout_sec : Int32 = 60
+
     property timeout_sec : Int32 = 60
+
+    property! fallback_proxy_url : String? = ENV["PROXY_URL"]
+    def fallback_proxy_url? : Bool
+      !@fallback_proxy_url.nil?
+    end
 
     getter max_retries : Int32 = 1
     def max_retries=(@max_retries)
@@ -151,6 +157,13 @@ class Socksify::Proxy
     getter proxy
     def proxy=(proxies)
       @proxy = proxies.split /,|;/
+    end
+
+    def reset
+      @connect_timeout = 60
+      @timeout_sec = 60
+      @max_retries = 1
+      @fallback_proxy_url = ENV["PROXY_URL"]?
     end
 
   end   # Proxy::Config

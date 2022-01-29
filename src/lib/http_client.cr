@@ -37,16 +37,16 @@ class Socksify::HTTPClient < ::HTTP::Client
     @skip_proxy ? return super  : raise e
   end
 
-  def self.new(uri : URI, tls = nil, ignore_env = false)
+  def self.new(uri : URI, tls = nil, ignore_config = false)
     inst = super(uri, tls)
-    # if !ignore_env && Proxy.behind_proxy?
+    # if !ignore_config && Proxy.behind_proxy?
     #   inst.set_proxy Proxy.new(*Socksify::Proxy.parse_proxy_url)
     # end
     inst
   end
 
-  def self.new(uri : URI, tls = nil, ignore_env = false)
-    yield new(uri, tls, ignore_env)
+  def self.new(uri : URI, tls = nil, ignore_config = false)
+    yield new(uri, tls, ignore_config)
   end
 
   def proxy_connection_options
