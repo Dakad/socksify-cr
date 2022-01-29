@@ -7,8 +7,9 @@ class Socksify::HTTPClient < ::HTTP::Client
 
   getter proxy_url : String? = nil
 
-  # Determine if HTTP request can skip proxy if failed to connect
-  @skip_proxy : Bool = false
+  # Determine if HTTP request can skip proxy
+  # if failed to connect during the exec_request
+  setter skip_proxy : Bool = false
 
   def set_proxy(proxy : Proxy = nil)
     socket = @io
@@ -16,24 +17,24 @@ class Socksify::HTTPClient < ::HTTP::Client
 
     begin
       Retriable.retry(on: {IO::Error, Socksify::SOCKSError}) do
-        @proxy_url = proxy.proxy_url.not_nil!
         @io = proxy.open(@host, @port, @tls,  **proxy_connection_options)
       end
-    rescue e : IO::Error
-      HTTPClient.logger.fatal "Proxy could not opened : #{e}"
-      abort 100 unless @skip_proxy
-      # @io = nil
+      @proxy_url = proxy.proxy_url.not_nil!
+    rescue e : IO::Error | Socksify::SOCKSError
+      error_msg = "Failed to open connection on proxy '#{proxy.proxy_url}'"
+      raise Socksify::ProxyError::OpenConnectionError.new(error_msg, e)
     end
     HTTPClient.logger.debug "my HTTPClient#set_proxy  proxy.open->io  #{@io.inspect}"
   end
 
-  private def io
+  private def io : IO
     io = @io
-    # HTTPClient.logger.debug "my HTTPClient->io #{io.inspect}"
-    return io if io
+    return io if io && !io.closed?
 
-    set_proxy Proxy.new @proxy_url.not_nil! unless @proxy_url.nil?
-    super #if @skip_proxy
+    set_proxy Proxy.new @proxy_url.not_nil!
+    return @io.not_nil!
+  rescue e : ProxyError::OpenConnectionError
+    @skip_proxy ? return super  : raise e
   end
 
   def self.new(uri : URI, tls = nil, ignore_env = false)
