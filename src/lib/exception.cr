@@ -1,4 +1,19 @@
-class Socksify::SOCKSError < RuntimeError
+require "socket"
+
+class Socksify::ProxyError < ::IO::Error
+  def initialize(msg, cause = nil)
+    super
+  end
+
+  class OpenConnectionError < ProxyError
+  end
+
+  class FallbackOpenConnectionError < OpenConnectionError
+  end
+end
+
+
+class Socksify::SOCKSError < ::Socket::Error
   def initialize(msg)
     super
   end
