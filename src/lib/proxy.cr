@@ -9,12 +9,12 @@ class Socksify::Proxy
 
   alias Credential = NamedTuple(username: String, password: String)
 
-  class_property username : String? = ENV["PROXY_USERNAME"]?
-  class_property password : String? = ENV["PROXY_PASSWORD"]?
-  class_property proxy_uri : String? = ENV["PROXY_URI"]?
   class_property verify_tls : Bool = ENV["PROXY_VERIFY_TLS"]? != "false"
   class_property disable_crl_checks : Bool = ENV["PROXY_DISABLE_CRL_CHECKS"]? == "true"
   class_getter config : Config { Config.new }
+
+  # The credentials to acess the proxy
+  getter? proxy_auth : Credential?
 
   # The hostname or IP address of the HTTP proxy.
   getter proxy_host : String
@@ -25,29 +25,14 @@ class Socksify::Proxy
   # The fulll URL of the PROXY starting by the scheme (socks or http)
   getter proxy_url : String?
 
-  # The map of additional options that were given to the object at
-  # initialization.
+  # The map of additional options that were given to the object at initialization.
   getter tls : OpenSSL::SSL::Context::Client?
 
   # Simple check for relevant environment
-  def self.behind_proxy?
-    !!proxy_uri
+  def self.has_fallback_proxy?
+    config.fallback_proxy_url?
   end
 
-  # Grab the host, port from URI
-  def self.parse_proxy_url
-    proxy_url = proxy_uri.not_nil!
-    uri = URI.parse(proxy_url)
-    user = uri.user || username
-    pass = uri.password || password
-    host = uri.host.not_nil!
-    scheme = uri.scheme || "socks5"
-    port = uri.port || URI.default_port(uri.scheme.not_nil!).not_nil!
-    creds = {username: user, password: pass} if user && pass
-    {host, port, creds, scheme}
-  rescue
-    raise "Missing/malformed $http_proxy or $https_proxy in environment"
-  end
 
   def initialize(@proxy_url : String)
     uri = URI.parse @proxy_url.not_nil!
@@ -76,12 +61,8 @@ class Socksify::Proxy
   # can be used to tweak this proxy connection. Specifically, the following
   # options are supported:
   #
-  # * :username => the user name to use when authenticating to the proxy
-  # * :password => the password to use when authenticating
+  # * :proxy_auth => the user credentials to use when authenticating to the proxy
   private def initialize(@proxy_host : String, @proxy_port : Int32, @proxy_auth : Credential? = nil, @proxy_scheme :  String = "")
-    if !@proxy_auth && self.class.username && self.class.password
-      @proxy_auth = {username: self.class.username.as(String), password: self.class.password.as(String)}
-    end
   end
 
   # Return a new socket connected to the given host and port via the
